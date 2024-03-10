@@ -25,13 +25,11 @@ TRANSACTION_TEMPLATE_WITH_MEMO = """%(date)s * "%(payee)s" "%(memo)s"
 
 SPLIT_TRANSACTION_TEMPLATE = """%(date)s * %(payee)s
     ynab-id: "%(ynabid)s"
-    %(from_account)s    %(amount)s %(commodity)s
-"""
+    %(from_account)s    %(amount)s %(commodity)s"""
 
 SPLIT_TRANSACTION_TEMPLATE_WITH_MEMO = """%(date)s * "%(payee)s" "%(memo)s"
     ynab-id: "%(ynabid)s"
-    %(from_account)s    %(amount)s %(commodity)s
-"""
+    %(from_account)s    %(amount)s %(commodity)s"""
 
 TO_ACCOUNT_POSTING_TEMPLATE = "\n    %(to_account)s    %(split_amount)s %(commodity)s"
 
