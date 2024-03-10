@@ -25,13 +25,15 @@ TRANSACTION_TEMPLATE_WITH_MEMO = """%(date)s * "%(payee)s" "%(memo)s"
 
 SPLIT_TRANSACTION_TEMPLATE = """%(date)s * %(payee)s
     ynab-id: "%(ynabid)s"
-    %(from_account)s    %(amount)s %(commodity)s"""
+    %(from_account)s    %(amount)s %(commodity)s
+"""
 
 SPLIT_TRANSACTION_TEMPLATE_WITH_MEMO = """%(date)s * "%(payee)s" "%(memo)s"
     ynab-id: "%(ynabid)s"
-    %(from_account)s    %(amount)s %(commodity)s"""
+    %(from_account)s    %(amount)s %(commodity)s
+"""
 
-TO_ACCOUNT_POSTING_TEMPLATE = "\n    %(to_account)s    %(split_amount)s %(commodity)s"
+TO_ACCOUNT_POSTING_TEMPLATE = "    %(to_account)s    %(split_amount)s %(commodity)s\n"
 
 INCOME_ACCOUNTS = ('Category/__ImmediateIncome__', 'Category/__DeferredIncome__')
 
@@ -204,7 +206,6 @@ def import_transactions(ynab, account_mapping, commodity, previous_imports, sinc
                     'categoryId' in txn
                     and txn['categoryId'] == 'Category/__Split__'
             ):
-                print('Split transaction - processing subTransactions')
                 t = process_split_transactions(txn, ynab, account_mapping, commodity)
             else:
                 vars = convert_ynab(txn, ynab, account_mapping, commodity)
