@@ -23,6 +23,18 @@ TRANSACTION_TEMPLATE_WITH_MEMO = """%(date)s * "%(payee)s" "%(memo)s"
     %(to_account)s
 """
 
+SPLIT_TRANSACTION_TEMPLATE = """%(date)s * %(payee)s
+    ynab-id: "%(ynabid)s"
+    %(from_account)s    %(amount)s %(commodity)s
+"""
+
+SPLIT_TRANSACTION_TEMPLATE_WITH_MEMO = """%(date)s * "%(payee)s" "%(memo)s"
+    ynab-id: "%(ynabid)s"
+    %(from_account)s    %(amount)s %(commodity)s
+"""
+
+TO_ACCOUNT_POSTING_TEMPLATE = "\n    %(to_account)s    %(split_amount)s %(commodity)s"
+
 INCOME_ACCOUNTS = ('Category/__ImmediateIncome__', 'Category/__DeferredIncome__')
 
 YNAB = collections.namedtuple('YNAB', ['transactions', 'categories', 'accounts', 'payees'])
@@ -109,6 +121,48 @@ def convert_ynab(txn, ynab, account_mapping, commodity):
 
     return vars
 
+
+def convert_ynab_stxn(txn, stxn, ynab, account_mapping, commodity):
+    vars = {}
+    vars['date'] = txn['date']
+    vars['payee'] = ynab.payees[txn['payeeId']]['name']
+    vars['memo'] = txn.get('memo')
+    vars['from_account'] = get_beancount_account(txn['accountId'], ynab.accounts, account_mapping)
+    vars['ynabid'] = txn['entityId']
+
+    # We always insert commas.
+    vars['amount'] = "{:,}".format(txn['amount'])
+    vars['split_amount'] = "{:,}".format(stxn['amount'])
+
+    vars['commodity'] = commodity
+
+    vars['to_account'] = get_beancount_category(stxn['categoryId'], ynab.categories, account_mapping)
+
+    return vars
+
+
+def process_split_transactions(txn, ynab, account_mapping, commodity):
+    if 'subTransactions' in txn:
+        sub_transactions = txn['subTransactions']
+        transaction = None
+        for stxn in sub_transactions:
+            vars = convert_ynab_stxn(txn, stxn, ynab, account_mapping, commodity)
+            if not transaction:
+                if vars['memo']:
+                    # Double quotes are special beancount so we need to replace any in the source data
+                    vars['memo'] = vars['memo'].replace('"', "'")
+                    transaction = SPLIT_TRANSACTION_TEMPLATE_WITH_MEMO % vars
+                else:
+                    transaction = SPLIT_TRANSACTION_TEMPLATE % vars
+
+            posting = TO_ACCOUNT_POSTING_TEMPLATE % vars
+            transaction += posting
+        return transaction
+    else:
+        raise "Category/__Split__ transaction without sub-transactions!"
+
+
+
 def import_transactions(ynab, account_mapping, commodity, previous_imports, since=None):
     # This is used to de-duplicate transfers. YNAB creates two transactions
     # (one for each account) but we only create one (which has 2 legs)
@@ -148,13 +202,20 @@ def import_transactions(ynab, account_mapping, commodity, previous_imports, sinc
             transfers.append(transfer_id)
 
         try:
-            vars = convert_ynab(txn, ynab, account_mapping, commodity)
-            if vars['memo']:
-                # Double quotes are special beancount so we need to replace any in the source data
-                vars['memo'] = vars['memo'].replace('"', "'")
-                t = TRANSACTION_TEMPLATE_WITH_MEMO % vars
+            if (
+                    'categoryId' in txn
+                    and txn['categoryId'] == 'Category/__Split__'
+            ):
+                print('Split transaction - processing subTransactions')
+                t = process_split_transactions(txn, ynab, account_mapping, commodity)
             else:
-                t = TRANSACTION_TEMPLATE % vars
+                vars = convert_ynab(txn, ynab, account_mapping, commodity)
+                if vars['memo']:
+                    # Double quotes are special beancount so we need to replace any in the source data
+                    vars['memo'] = vars['memo'].replace('"', "'")
+                    t = TRANSACTION_TEMPLATE_WITH_MEMO % vars
+                else:
+                    t = TRANSACTION_TEMPLATE % vars
             print(t)
 
             imported += 1
