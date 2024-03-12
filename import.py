@@ -23,7 +23,7 @@ TRANSACTION_TEMPLATE_WITH_MEMO = """%(date)s * "%(payee)s" "%(memo)s"
     %(to_account)s
 """
 
-SPLIT_TRANSACTION_TEMPLATE = """%(date)s * %(payee)s
+SPLIT_TRANSACTION_TEMPLATE = """%(date)s * "%(payee)s"
     ynab-id: "%(ynabid)s"
     %(from_account)s    %(amount)s %(commodity)s
 """
@@ -90,6 +90,8 @@ def get_beancount_account(entity_id, accounts, account_mapping):
 def get_beancount_category(entity_id, categories, account_mapping):
     # Income is special in YNAB...it doesn't really track where it comes from very
     # well.
+    #if entity_id is None:
+    #    return account_mapping.get('Category/__DeferredIncome__', 'Category/__DeferredIncome__')
     if entity_id in INCOME_ACCOUNTS:
         return account_mapping.get(entity_id, entity_id)
 
@@ -132,7 +134,7 @@ def convert_ynab_stxn(txn, stxn, ynab, account_mapping, commodity):
 
     # We always insert commas.
     vars['amount'] = "{:,}".format(txn['amount'])
-    vars['split_amount'] = "{:,}".format(stxn['amount'])
+    vars['split_amount'] = "{:,}".format(-float(stxn['amount']))
 
     vars['commodity'] = commodity
 
